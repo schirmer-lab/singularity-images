@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: raphsoft/python_base:3.10
+From: raphsoft/python_base:3.10-R2
 
 %post
 
