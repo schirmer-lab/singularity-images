@@ -3,4 +3,4 @@ From: raphsoft/python_base:3.10
 
 %post
 
-echo "Singularity from docker raphsoft/python_base:3.10 R2"
+echo "Singularity from docker raphsoft/python_base:3.10-R2"
