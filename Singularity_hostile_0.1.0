@@ -4,3 +4,4 @@ From: quay.io/biocontainers/hostile:0.1.0--pyhdfd78af_0
 %post
 
 echo "Singularity from docker biocontainers/hostile:0.1.0"
+
