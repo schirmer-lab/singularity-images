@@ -42,7 +42,7 @@ jobs:
       - uses: eWaterCycle/setup-singularity@v6
         if: ${{ env.release_tag != env.latest_tag }}
         with:
-          singularity-version: 3.7.1
+          singularity-version: 3.7.3
       - name: Build the singularity container
         if: ${{ env.release_tag != env.latest_tag }}
         run: |
