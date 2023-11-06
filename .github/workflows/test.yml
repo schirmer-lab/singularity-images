@@ -41,10 +41,9 @@ jobs:
 
                     if [ "$file_size" -gt "$two_gb" ]; then
                         echo "Container is larger than 2GB. This image won't be available on the release page"
-                        rm container.sif
-                    else
-                        mv container.sif "$container"
                     fi
+
+                    rm container.sif
                 else
                     echo "There was an issue building $container."
                 fi                
