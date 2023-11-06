@@ -84,9 +84,11 @@ jobs:
                         cd large-data
                         git config user.name "Emilio Garcia"
                         git config user.email "emilio.rios@tum.de"
-
+                        git config --unset-all http.https://github.com/.extraheader
+                        
                         git add "$container"
                         git commit -m "Release $container to LSF"
+
                         git push -u origin main
 
                         cd .. && rm -rf large-data
@@ -107,3 +109,4 @@ jobs:
           tag_name: ${{ env.release_tag }}
         run: |
           gh release upload "$tag_name" $(find . -type f -name "*.sif" -printf "%p ")
+
