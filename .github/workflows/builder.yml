@@ -2,16 +2,25 @@ name: singularity-deploy
 
 on:
   push:
-    # This branch does not exist! You should update this to be your "production" branch
-    # and ensure that when you work on recipes you only merge to this branch when it's time to release
-    # You can also use another GitHub trigger entirely
     branches:
       - "main"
 
 jobs:
+
+  lock:
+    name: Lock actions
+    runs-on: self-hosted
+    if: always()
+    steps:
+      - name: Lock actions
+        run: |
+            touch /nfs/data/release.job.lock
+
+
   release:
     name: Create Release
     runs-on: self-hosted
+    needs: [lock]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -51,11 +60,11 @@ jobs:
         run: |
           gh release upload "$tag_name" $(find /nfs/data/release/ -type f -name "*.sif" -printf "%p ")
 
-            
 
   push:
     name: Push to LFS
     runs-on: self-hosted
+    if: ${{ hashFiles('/nfs/data/medium_images/') != '' }}
     needs: [release]
     steps:
       - uses: actions/checkout@v3
@@ -80,3 +89,14 @@ jobs:
           git add --all
           git commit -m "Update large data"
           git push
+
+
+  unlock:
+    name: Unlock actions
+    runs-on: self-hosted
+    needs: [push]
+    if: always()
+    steps:
+      - name: Unlock actions
+        run: |
+            rm /nfs/data/release.job.lock
