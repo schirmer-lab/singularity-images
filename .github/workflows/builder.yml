@@ -53,6 +53,11 @@ jobs:
             repo=$(echo "${GITHUB_REPOSITORY/\//-}")
 
             # For each Singularity* container, build based on the prefix (tag) 
+            rm -rf large && mkdir -p large
+            echo "$pwd"
+
+            echo "test" >> /nfs/data/file.txt
+
             for recipe in $(ls Singularity*); do
                 echo "Building $recipe"
                 tag=$(echo "${recipe/Singularity\./}")
@@ -74,7 +79,6 @@ jobs:
                     mv container.sif "$container"
 
                     if [ "$file_size" -gt "$two_gb" ]; then
-                        mkdir -p large
                         echo "Container is larger than 2GB. This image won't be available on the release page"
                         mv "$container" large/
                     fi
@@ -83,25 +87,3 @@ jobs:
                 fi
             done
 
-      - name: Upload Release Assets
-        if: ${{ env.release_tag != env.latest_tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          tag_name: ${{ env.release_tag }}
-        run: |
-          gh release upload "$tag_name" $(find . -type f -name "*.sif" -not -path "./large/*" -printf "%p ")
-
-      - uses: actions/checkout@v3
-        with:
-          repository: schirmer-lab/large-data
-          ref: 'main'
-      - name: setup git config
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
-      - run: |
-          cp large/* .
-          gi add --all
-          git commit -m "Add large files from release $tag_name"
-      - run: git push origin main
