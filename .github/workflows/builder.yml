@@ -96,7 +96,7 @@ jobs:
         env:
           tag_name: ${{ env.release_tag }}
         with:
-          repository: large-data
+          repository: schirmer-lab/large-data
           ref: 'main'
           token:  ${{ secrets.ACTIONS_ACCESS_TOKEN }}
       - name: setup git config
