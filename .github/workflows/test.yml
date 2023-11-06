@@ -14,7 +14,6 @@ on:
 jobs:
   push:
     name: Push to LFS
-    needs: builder
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
