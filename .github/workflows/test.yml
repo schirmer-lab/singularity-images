@@ -18,20 +18,24 @@ jobs:
         run: |
             repo=$(echo "${GITHUB_REPOSITORY/\//-}")
 
-            echo "$(go version)"
-            echo "$(make --version)"
+            rm -rf /nfs/data/large_images/*.*
+            rm -rf /nfs/data/medium_images/*.*
+            rm -rf /nfs/data/release/*.*
+
+            mkdir -p /nfs/data/large_images /nfs/data/medium_images /nfs/data/release
 
             # For each Singularity* container, build based on the prefix (tag) 
             for recipe in $(ls Singularity*); do
                 echo "Building $recipe"
                 tag=$(echo "${recipe/Singularity\./}")
+
                 # If we find empty, use latest
                 if [ "$tag" == "Singularity" ]; then
                     tag=latest
                 fi
                 # Build the container and name by tag
                 echo "Tag is $tag."
-                container="$repo:$tag.sif"
+                container="${tag:12}.sif"
                 singularity build --fakeroot container.sif "$recipe"
                 
                 if [ "$?" == "0" ]; then
@@ -39,16 +43,21 @@ jobs:
 
                     file_size=$(stat -c%s container.sif)
                     two_gb=$((2*1024*1024*1024))
+                    four_gb=$((2*1024*1024*1024))
 
-                    if [ "$file_size" -gt "$two_gb" ]; then
-                        echo "Container is larger than 2GB. This image won't be available on the release page"
+                    if [ "$file_size" -gt "$four_gb" ]; then
+                      echo "Container is larger than 4GB. This image won't be published"
+                      mv container.sif "/nfs/data/large_images/$container"
+                    else
+                      if [ "$file_size" -gt "$two_gb" ]; then
+                        echo "Container is larger than 2GB. This image will be uploaded to LSF"
+                        mv container.sif "/nfs/data/medium_images/$container"
+                      else
+                        echo "Container is smaller than 2GB. This image will be uploaded to Release"
+                        mv container.sif "/nfs/data/release/$container"
+                      fi
                     fi
-
-                    rm container.sif
                 else
                     echo "There was an issue building $container."
                 fi                
             done
-      - name: Run Additional Tests
-        run: |
-          echo "Run any additional tests here."
