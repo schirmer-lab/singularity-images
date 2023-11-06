@@ -1,20 +1,20 @@
 name: singularity-deploy-test
 
+permissions:
+  deployments: write
+  contents: write
+  statuses: write
+  actions: write
+  checks: read
+  
 # run on creation of a release tag
 on:
   pull_request: []
 
 jobs:
-
-
   push:
     name: Push to LFS
-    permissions:
-      deployments: write
-      contents: write
-      statuses: write
-      actions: write
-      checks: read
+    needs: builder
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
