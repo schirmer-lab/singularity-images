@@ -1,34 +1,61 @@
 name: singularity-deploy-test
 
-permissions:
-  deployments: write
-  contents: write
-  statuses: write
-  actions: write
-  checks: read
-  
 # run on creation of a release tag
 on:
   pull_request: []
 
 jobs:
-  push:
-    name: Push to LFS
+  builder:
+    name: Test Container Builds
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - uses: eWaterCycle/setup-singularity@v7
         with:
-          repository: schirmer-lab/large-data
-          ref: 'main'
-          token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
-      - name: setup git config
+          singularity-version: 3.7.1
+      - name: Build the singularity containers
         run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
-          git config --global http.postBuffer 524288000
-          git config --global pack.window 1
-      - run: |
-          cp /nfs/data/large_images/*.sif .
-          git add --all
-          git commit -m "Update large data"
-      - run: git push origin main
+            repo=$(echo "${GITHUB_REPOSITORY/\//-}")
+
+            rm -rf /nfs/data/large_images/*.*
+            rm -rf /nfs/data/medium_images/*.*
+            rm -rf /nfs/data/release/*.*
+
+            # For each Singularity* container, build based on the prefix (tag) 
+            for recipe in $(ls Singularity*); do
+                echo "Building $recipe"
+                tag=$(echo "${recipe/Singularity\./}")
+
+                # If we find empty, use latest
+                if [ "$tag" == "Singularity" ]; then
+                    tag=latest
+                fi
+                # Build the container and name by tag
+                echo "Tag is $tag."
+                container="${tag:12}.sif"
+                singularity build --fakeroot container.sif "$recipe"
+                
+                if [ "$?" == "0" ]; then
+                    echo "Successfully built container $container."
+
+                    file_size=$(stat -c%s container.sif)
+                    two_gb=$((2*1024*1024*1024))
+                    four_gb=$((2*1024*1024*1024))
+
+                    if [ "$file_size" -gt "$four_gb" ]; then
+                      echo "Container is larger than 4GB. This image won't be published"
+                      mv container.sif "/nfs/data/large_images/$container"
+                    else
+                      if [ "$file_size" -gt "$two_gb" ]; then
+                        echo "Container is larger than 2GB. This image will be uploaded to LSF"
+                        mv container.sif "/nfs/data/medium_images/$container"
+                      else
+                        echo "Container is smaller than 2GB. This image will be uploaded to Release"
+                        mv container.sif "/nfs/data/release/$container"
+                      fi
+                    fi
+                else
+                    echo "There was an issue building $container."
+                fi                
+            done
