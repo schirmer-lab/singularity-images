@@ -78,6 +78,8 @@ jobs:
                     if [ "$file_size" -gt "$two_gb" ]; then
                         echo "Container is larger than 2GB. This image won't be available on the release page"
                         mv "$container" large/
+                    else
+                      rm "$container"
                     fi
                 else
                     echo "There was an issue building $container."          
@@ -86,3 +88,19 @@ jobs:
 
             mv large/ /nfs/data/large/
 
+  push:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: schirmer-lab/large-data
+          ref: 'main'
+      - name: setup git config
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+      - run: |
+          cp /nfs/data/large/*.sif .
+          git add --all
+          git commit -m "Update large data"
+      - run: git push origin main
