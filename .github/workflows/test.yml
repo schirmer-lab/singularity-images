@@ -16,11 +16,14 @@ jobs:
           singularity-version: 3.7.1
       - name: Build the singularity containers
         run: |
+            while [ -e "/nfs/data/release.job.lock" ]; do
+              echo "A Release Job is running, waiting for 30 seconds..."
+              sleep 30
+            done
+
             repo=$(echo "${GITHUB_REPOSITORY/\//-}")
 
-            rm -rf /nfs/data/large_images/*.*
-            rm -rf /nfs/data/medium_images/*.*
-            rm -rf /nfs/data/release/*.*
+            rm -rf /nfs/data/large_images/*.* /nfs/data/medium_images/*.* /nfs/data/release/*.*
 
             mkdir -p /nfs/data/large_images /nfs/data/medium_images /nfs/data/release
 
