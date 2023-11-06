@@ -26,6 +26,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git config --global http.postBuffer 524288000
+          git config --global pack.window 1
       - run: |
           cp /nfs/data/large_images/*.sif .
           git add --all
