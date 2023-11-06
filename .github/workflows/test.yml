@@ -9,7 +9,12 @@ jobs:
 
   push:
     name: Push to LFS
-
+    permissions:
+      deployments: write
+      contents: write
+      statuses: write
+      actions: write
+      checks: read
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
