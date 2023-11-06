@@ -54,9 +54,6 @@ jobs:
 
             # For each Singularity* container, build based on the prefix (tag) 
             rm -rf large && mkdir -p large
-            echo "$pwd"
-
-            echo "test" >> /nfs/data/file.txt
 
             for recipe in $(ls Singularity*); do
                 echo "Building $recipe"
@@ -86,4 +83,6 @@ jobs:
                     echo "There was an issue building $container."          
                 fi
             done
+
+            mv large/ /nfs/data/large/
 
