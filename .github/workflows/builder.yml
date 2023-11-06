@@ -64,7 +64,6 @@ jobs:
   push:
     name: Push to LFS
     runs-on: self-hosted
-    if: ${{ hashFiles('/nfs/data/medium_images/') != '' }}
     needs: [release]
     steps:
       - uses: actions/checkout@v3
@@ -85,12 +84,20 @@ jobs:
           export GIT_TRACE=1
           export GIT_CURL_VERBOSE=1
 
-          cp /nfs/data/medium_images/*.sif ./singularity/
-          git add --all
-          git commit -m "Update large data"
-          git push
-
-
+          dir=/nfs/data/medium_images
+          if [ -d "$dir" ]; then
+            if [ -z "$(ls -A $dir)" ]; then
+                echo "Nothing to release..."
+            else
+              cp /nfs/data/medium_images/*.sif ./singularity/
+              git add --all
+              git commit -m "Update large data"
+              git push
+            fi
+          else
+            echo "Directory does not exist..."
+          fi
+          
   unlock:
     name: Unlock actions
     runs-on: self-hosted
