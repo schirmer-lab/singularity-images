@@ -98,7 +98,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
           token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
         with:
-          repository: large-data
+          repository: schirmer-lab/large-data
           ref: 'main'
           token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
       - name: setup git config
