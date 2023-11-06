@@ -7,16 +7,19 @@ on:
 jobs:
   builder:
     name: Test Container Builds
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - uses: eWaterCycle/setup-singularity@v6
+      - uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: 3.7.1
       - name: Build the singularity containers
         run: |
             repo=$(echo "${GITHUB_REPOSITORY/\//-}")
+
+            echo "$(go version)"
+            echo "$(make --version)"
 
             # For each Singularity* container, build based on the prefix (tag) 
             for recipe in $(ls Singularity*); do
@@ -31,10 +34,18 @@ jobs:
                 container="$repo:$tag.sif"
                 singularity build --fakeroot container.sif "$recipe"
                 if [ "$?" == "0" ]; then
-                    echo "Successfully built container $container."                
-                    mv container.sif "$container"
+                    echo "Successfully built container $container."
+
+                    file_size=$(stat -c%s container.sif)
+                    two_gb=$((2*1024*1024*1024))
+
+                    if [ "$file_size" -gt "$two_gb" ]; then
+                        echo "Container is larger than 2GB. This image won't be available on the release page"
+                    fi
+
+                    rm container.sif
                 else
-                    echo "There was an issue building $container."          
+                    echo "There was an issue building $container."
                 fi                
             done
       - name: Run Additional Tests
