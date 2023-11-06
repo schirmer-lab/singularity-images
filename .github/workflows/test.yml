@@ -5,57 +5,10 @@ on:
   pull_request: []
 
 jobs:
-  builder:
-    name: Test Container Builds
-    runs-on: self-hosted
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - uses: eWaterCycle/setup-singularity@v7
-        with:
-          singularity-version: 3.7.1
-      - name: Build the singularity containers
-        run: |
-            repo=$(echo "${GITHUB_REPOSITORY/\//-}")
 
-            echo "$(go version)"
-            echo "$(make --version)"
-
-            # For each Singularity* container, build based on the prefix (tag) 
-            for recipe in $(ls Singularity*); do
-                echo "Building $recipe"
-                tag=$(echo "${recipe/Singularity\./}")
-                # If we find empty, use latest
-                if [ "$tag" == "Singularity" ]; then
-                    tag=latest
-                fi
-                # Build the container and name by tag
-                echo "Tag is $tag."
-                container="$tag.sif"
-                singularity build --fakeroot container.sif "$recipe"
-                
-                if [ "$?" == "0" ]; then
-                    echo "Successfully built container $container."
-
-                    file_size=$(stat -c%s container.sif)
-                    two_gb=$((2*1024*1024*1024))
-
-                    if [ "$file_size" -gt "$two_gb" ]; then
-                      echo "Container is larger than 2GB. This image won't be available on the release page"
-                      mv container.sif "/nfs/data/large_images/$container"
-                    else
-                      rm container.sif
-                    fi
-                else
-                    echo "There was an issue building $container."
-                fi                
-            done
-
-      - name: Run Additional Tests
-        run: |
-          echo "Run any additional tests here."
 
   push:
+    name: Push to LFS
     needs: builder
     runs-on: self-hosted
     steps:
@@ -68,7 +21,7 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
       - run: |
-          cp /nfs/data/large/*.sif .
+          cp /nfs/data/large_images/*.sif .
           git add --all
           git commit -m "Update large data"
       - run: git push origin main
