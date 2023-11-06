@@ -49,8 +49,6 @@ jobs:
 
       - name: Build the singularity container
         if: ${{ env.release_tag != env.latest_tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
         run: |
             repo=$(echo "${GITHUB_REPOSITORY/\//-}")
 
@@ -76,25 +74,9 @@ jobs:
                     mv container.sif "$container"
 
                     if [ "$file_size" -gt "$two_gb" ]; then
-
+                        mkdir -p large
                         echo "Container is larger than 2GB. This image won't be available on the release page"
-                        
-                        rm -rf large-data
-                        git clone --single-branch --branch main https://gariem:$GITHUB_TOKEN@github.com/schirmer-lab/large-data.git large-data
-                        cd large-data
-                        git config user.name "Emilio Garcia"
-                        git config user.email "emilio.rios@tum.de"
-                        git config --unset-all http.https://github.com/.extraheader
-                        
-                        git add "$container"
-                        git commit -m "Release $container to LSF"
-
-                        git push -u origin main
-
-                        cd .. && rm -rf large-data
-
-                        rm "$container"
-
+                        mv "$container" large/
                     fi
                 else
                     echo "There was an issue building $container."          
@@ -108,5 +90,21 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
           tag_name: ${{ env.release_tag }}
         run: |
-          gh release upload "$tag_name" $(find . -type f -name "*.sif" -printf "%p ")
+          gh release upload "$tag_name" $(find . -type f -name "*.sif" -not -path "./large/*" -printf "%p ")
 
+      - uses: actions/checkout@v3
+        env:
+          tag_name: ${{ env.release_tag }}
+        with:
+          repository: large-data
+          ref: 'main'
+          token:  ${{ secrets.ACTIONS_ACCESS_TOKEN }}
+      - name: setup git config
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+      - run: |
+          cp large/* .
+          gi add --all
+          git commit -m "Add large files from release $tag_name"
+      - run: git push origin main
