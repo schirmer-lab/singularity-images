@@ -95,10 +95,12 @@ jobs:
       - uses: actions/checkout@v3
         env:
           tag_name: ${{ env.release_tag }}
+          GITHUB_TOKEN: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
+          token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
         with:
-          repository: schirmer-lab/large-data
+          repository: large-data
           ref: 'main'
-          token:  ${{ secrets.ACTIONS_ACCESS_TOKEN }}
+          token: ${{ secrets.ACTIONS_ACCESS_TOKEN }}
       - name: setup git config
         run: |
           git config user.name "GitHub Actions Bot"
