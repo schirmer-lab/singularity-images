@@ -70,7 +70,10 @@ jobs:
 
           tag=$(echo "${recipe/Singularity\./}")
 
-          [[ "$tag" == "$recipe" ]] && tag=latest
+          if [ "$tag" == "Singularity" ]; then
+            tag=latest
+          fi
+
           echo "Tag is $tag."
           container="${tag:12}.sif"
 
