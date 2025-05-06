@@ -99,3 +99,9 @@ jobs:
             echo "Container ≤2 GB; uploading to release"
             mv "$container" "/nfs/data/release/$container"
           fi
+
+      - name: Clean runner temp
+        if: always()
+        run: |
+          echo "Removing all files from $RUNNER_TEMP"
+          rm -rf "$RUNNER_TEMP"/*
