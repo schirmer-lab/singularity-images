@@ -61,14 +61,23 @@ jobs:
           singularity-version: 3.7.1
 
       - name: Build container for ${{ matrix.recipe }}
+        env:
+          SINGULARITY_NO_CACHE: 1
+          SINGULARITY_CACHEDIR: $RUNNER_TEMP/singularity-cache
         run: |
           recipe=${{ matrix.recipe }}
           echo "Building $recipe"
-          tag=${recipe#Singularity.}
-          [[ "$tag" == "$recipe" ]] && tag=latest
+
+          tag=$(echo "${recipe/Singularity\./}")
+
+          if [ "$tag" == "Singularity" ]; then
+            tag=latest
+          fi
+
           echo "Tag is $tag."
           container="${tag:12}.sif"
 
+          mkdir -p "$SINGULARITY_CACHEDIR"
           singularity build --fakeroot "$container" "$recipe"
           if [[ $? -ne 0 ]]; then
             echo "Error building $container"
@@ -90,3 +99,10 @@ jobs:
             echo "Container ≤2 GB; uploading to release"
             mv "$container" "/nfs/data/release/$container"
           fi
+
+      - name: Clean runner temp
+        if: always()
+        run: |
+          echo "Removing all files from $RUNNER_TEMP"
+          rm -rf "$RUNNER_TEMP"/*
+
