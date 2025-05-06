@@ -67,7 +67,9 @@ jobs:
         run: |
           recipe=${{ matrix.recipe }}
           echo "Building $recipe"
-          tag=${recipe#Singularity.}
+
+          tag=$(echo "${recipe/Singularity\./}")
+
           [[ "$tag" == "$recipe" ]] && tag=latest
           echo "Tag is $tag."
           container="${tag:12}.sif"
