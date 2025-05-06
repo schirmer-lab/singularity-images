@@ -1,66 +1,92 @@
 name: singularity-deploy-test
 
-# run on creation of a release tag
+# run on pull requests
 on:
   pull_request: []
 
 jobs:
-  builder:
-    name: Test Container Builds
+  setup:
+    name: Prepare NFS & Wait for Lock
     runs-on: self-hosted
+    steps:
+      - name: Wait for other release job to finish
+        run: |
+          while [ -e "/nfs/data/release.job.lock" ]; do
+            echo "A Release Job is running, waiting for 30 seconds..."
+            sleep 30
+          done
+      - name: Clean and recreate target directories
+        run: |
+          rm -rf /nfs/data/large_images/*.* \
+                 /nfs/data/medium_images/*.* \
+                 /nfs/data/release/*.*
+          mkdir -p /nfs/data/large_images \
+                   /nfs/data/medium_images \
+                   /nfs/data/release
+
+  find-recipes:
+    name: Discover Singularity recipes
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate build matrix
+        id: set-matrix
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const recipes = fs
+              .readdirSync('.')
+              .filter(f => f.startsWith('Singularity'));
+            const matrix = {
+              include: recipes.map(r => ({ recipe: r }))
+            };
+            core.setOutput('matrix', JSON.stringify(matrix));
+
+  build:
+    name: Build ${{ matrix.recipe }}
+    needs: [setup, find-recipes]
+    runs-on: self-hosted
+    strategy:
+      matrix: ${{ fromJson(needs.find-recipes.outputs.matrix) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - uses: eWaterCycle/setup-singularity@v7
+
+      - name: Setup Singularity
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: 3.7.1
-      - name: Build the singularity containers
+
+      - name: Build container for ${{ matrix.recipe }}
         run: |
-            while [ -e "/nfs/data/release.job.lock" ]; do
-              echo "A Release Job is running, waiting for 30 seconds..."
-              sleep 30
-            done
+          recipe=${{ matrix.recipe }}
+          echo "Building $recipe"
+          tag=${recipe#Singularity.}
+          [[ "$tag" == "$recipe" ]] && tag=latest
+          echo "Tag is $tag."
+          container="${tag:12}.sif"
 
-            repo=$(echo "${GITHUB_REPOSITORY/\//-}")
+          singularity build --fakeroot "$container" "$recipe"
+          if [[ $? -ne 0 ]]; then
+            echo "Error building $container"
+            exit 1
+          fi
 
-            rm -rf /nfs/data/large_images/*.* /nfs/data/medium_images/*.* /nfs/data/release/*.*
+          echo "Successfully built $container."
+          size=$(stat -c%s "$container")
+          two_gb=$((2*1024*1024*1024))
+          four_gb=$((4*1024*1024*1024))
 
-            mkdir -p /nfs/data/large_images /nfs/data/medium_images /nfs/data/release
-
-            # For each Singularity* container, build based on the prefix (tag) 
-            for recipe in $(ls Singularity*); do
-                echo "Building $recipe"
-                tag=$(echo "${recipe/Singularity\./}")
-
-                # If we find empty, use latest
-                if [ "$tag" == "Singularity" ]; then
-                    tag=latest
-                fi
-                # Build the container and name by tag
-                echo "Tag is $tag."
-                container="${tag:12}.sif"
-                singularity build --fakeroot container.sif "$recipe"
-                
-                if [ "$?" == "0" ]; then
-                    echo "Successfully built container $container."
-
-                    file_size=$(stat -c%s container.sif)
-                    two_gb=$((2*1024*1024*1024))
-                    four_gb=$((2*1024*1024*1024))
-
-                    if [ "$file_size" -gt "$four_gb" ]; then
-                      echo "Container is larger than 4GB. This image won't be published"
-                      mv container.sif "/nfs/data/large_images/$container"
-                    else
-                      if [ "$file_size" -gt "$two_gb" ]; then
-                        echo "Container is larger than 2GB. This image will be uploaded to LSF"
-                        mv container.sif "/nfs/data/medium_images/$container"
-                      else
-                        echo "Container is smaller than 2GB. This image will be uploaded to Release"
-                        mv container.sif "/nfs/data/release/$container"
-                      fi
-                    fi
-                else
-                    echo "There was an issue building $container."
-                fi                
-            done
+          if (( size > four_gb )); then
+            echo "Container >4 GB; skipping publish"
+            mv "$container" "/nfs/data/large_images/$container"
+          elif (( size > two_gb )); then
+            echo "Container >2 GB; uploading to medium_images"
+            mv "$container" "/nfs/data/medium_images/$container"
+          else
+            echo "Container ≤2 GB; uploading to release"
+            mv "$container" "/nfs/data/release/$container"
+          fi
