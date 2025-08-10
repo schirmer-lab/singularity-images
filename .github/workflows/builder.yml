@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Lock actions
         run: |
-            touch /nfs/data/release.job.lock
+            touch /data/builds/release.job.lock
 
 
   release:
@@ -55,10 +55,10 @@ jobs:
         if: ${{ env.release_tag != env.latest_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           tag_name: ${{ env.release_tag }}
         run: |
-          gh release upload "$tag_name" $(find /nfs/data/release/ -type f -name "*.sif" -printf "%p ")
+          gh release upload "$tag_name" $(find /data/builds/release/ -type f -name "*.sif" -printf "%p ")
 
 
   push:
@@ -84,12 +84,12 @@ jobs:
           export GIT_TRACE=1
           export GIT_CURL_VERBOSE=1
 
-          dir=/nfs/data/medium_images
+          dir=/data/builds/medium_images
           if [ -d "$dir" ]; then
             if [ -z "$(ls -A $dir)" ]; then
                 echo "Nothing to release..."
             else
-              cp /nfs/data/medium_images/*.sif ./singularity/
+              cp /data/builds/medium_images/*.sif ./singularity/
               git add --all
               git commit -m "Update large data"
               git push
@@ -97,7 +97,7 @@ jobs:
           else
             echo "Directory does not exist..."
           fi
-          
+
   unlock:
     name: Unlock actions
     runs-on: self-hosted
@@ -106,4 +106,4 @@ jobs:
     steps:
       - name: Unlock actions
         run: |
-            rm /nfs/data/release.job.lock
+            rm /data/builds/release.job.lock
